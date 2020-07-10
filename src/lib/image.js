@@ -76,10 +76,19 @@ $builtinmodule = function (name) {
 
         remapImageIdToURL = function (imageId) {
             // if imageId starts with http -- OK
-            // if imageId is in Sk.imageMap -- look it up
             // if imageId is the name of an image file prepend http://host/app/book/_static/
             // if image proxy server is configured construct url for proxy
             // return the final URL
+            let jsimid = Sk.ffi.remapToJs(imageId)
+            try {
+                let result = Sk.read(jsimid);
+                let fileExtension = jsimid.substring(
+                    jsimid.lastIndexOf(".") + 1
+                );
+                return `data:image/${fileExtension};base64, ${result}`;
+            } catch(e) {
+                console.log(`${jsimid} is not in the database ${e}`);
+            }
 
             var proxy = typeof(Sk.imageProxy) === "function"
                         ? Sk.imageProxy : function (str) {
