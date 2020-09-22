@@ -2,7 +2,8 @@
 # Introduction to Data Structures and Algorithms in Python
 # Copyright 2005
 #
-#stack.py
+# stack.py
+
 
 class Stack:
     def __init__(self):
@@ -18,7 +19,7 @@ class Stack:
         return self.items.pop()
 
     def peek(self):
-        return self.items[len(self.items)-1]
+        return self.items[len(self.items) - 1]
 
     def size(self):
         return len(self.items)
