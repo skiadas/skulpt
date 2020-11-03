@@ -10,6 +10,10 @@ class TestCaseGui(TestCase):
         self.closestDiv = document.currentDiv()
         self.divid = document.currentGradingContainer()
         self.mydiv = document.getElementById(self.divid)
+        # If there is no div then create a dummy to avoid errors when running
+        # grading "off screen"
+        if self.mydiv is None:
+            self.mydiv = document.createElement("div")
         res = document.getElementById(self.divid + "_unit_results")
         if res:
             self.resdiv = res
@@ -170,12 +174,13 @@ class TestCaseGui(TestCase):
             + str(self.numFailed)
         )
         course = document.currentCourse()
-        urlopen(
-            "/runestone/ajax/hsblog",
-            "event=unittest&div_id="
-            + self.divid
-            + "&act="
-            + pctcorrect
-            + "&course="
-            + course,
-        )
+        if jseval("Sk.logResults"):
+            urlopen(
+                "/runestone/ajax/hsblog",
+                "event=unittest&div_id="
+                + self.divid
+                + "&act="
+                + pctcorrect
+                + "&course="
+                + course,
+            )
