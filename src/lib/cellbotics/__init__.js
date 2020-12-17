@@ -26,13 +26,18 @@ var $builtinmodule = function(name)
     let ble = cell_bot_ble_gui && cell_bot_ble_gui.cell_bot_ble;
 
     // This function turns a JavaScript Promise into its Skulpt equivalent, a suspension.
-    function promiseToSkulpt(promise_) {
+    function promiseToPy(promise_) {
         let susp = new Sk.misceval.Suspension();
         let resolution;
+        let exception;
 
         susp.resume = function() {
-            return resolution;
-        };
+            if (exception) {
+                throw exception;
+            } else {
+                return resolution;
+            }
+        }
 
         susp.data = {
             type: "Sk.promise",
@@ -40,7 +45,7 @@ var $builtinmodule = function(name)
                 resolution = Sk.ffi.remapToPy(value);
                 return value;
             }, function(err) {
-                resolution = "";
+                exception = err;
                 return err;
             })
         };
