@@ -53,6 +53,33 @@ var $builtinmodule = function(name)
         return susp;
     }
 
+    // Returns a function that calls the provided JavaScript function on the provided Python parameters, first converting the parameters to JavaScript.
+    function remapToJsFunc(
+        // The JavaScript function to invoke.
+        js_func,
+        // The expected number of arguments for this function; if this is empty, no argument checking is performed. Otherwise, this is passed directly to ``Sk.builtin.pyCheckArgs`` (defined in ``src/function.js``):
+        ...expected_args
+        //
+        // Note: it would be nice to simply query ``js_func`` for the number of arguments, but this is `hard <https://stackoverflow.com/questions/1007981/how-to-get-function-parameter-names-values-dynamically>`_.
+    ) {
+        return function(
+            // The arguments from Python.
+            ...args
+        ) {
+            if (expected_args) {
+                // Convert a number to an array, so we can use it in the spread below.
+                Sk.builtin.pyCheckArgs(js_func.toString(), args, ...expected_args);
+            }
+
+            // We don't care about converting the Python class to JS, and in fact don't need it. Strip it out. In the future, consider storing the JS class in the value returned to Python and using that.
+            args = args.slice(1);
+
+            // Convert all args to JS. Convert the return type back to Python (handling a Promise if necessary).
+            let ret = js_func(...args.map(x => Sk.ffi.remapToJs(x)));
+            return (ret instanceof Promise) ? promiseToPy(ret) : ret;
+        }
+    }
+
     mod.CellBot = Sk.misceval.buildClass(mod, function($gbl, $loc) {
         $loc.__init__ = new Sk.builtin.func(function(self) {
             if (ble === undefined || !ble.paired()) {
@@ -66,53 +93,15 @@ var $builtinmodule = function(name)
             $loc.OUTPUT = new Sk.builtin.int_(ble.OUTPUT);
         }
 
-        $loc.pinMode = new Sk.builtin.func(function(self, pin, mode) {
-            return promiseToSkulpt(ble.pinMode(Sk.ffi.remapToJs(pin), Sk.ffi.remapToJs(mode)));
-        });
-
-        $loc.digitalWrite = new Sk.builtin.func(function(self, pin, value) {
-            return promiseToSkulpt(ble.digitalWrite(Sk.ffi.remapToJs(pin), Sk.ffi.remapToJs(value)));
-        });
-
-        $loc.digitalRead = new Sk.builtin.func(function(self, pin) {
-            return promiseToSkulpt(ble.digitalRead(Sk.ffi.remapToJs(pin)));
-        });
-
-        $loc.ledcSetup = new Sk.builtin.func(function(self, u8_channel, d_freq, u8_resolution_bits) {
-            return promiseToSkulpt(ble.ledcSetup(Sk.ffi.remapToJs(u8_channel), Sk.ffi.remapToJs(d_freq), Sk.ffi.remapToJs(u8_resolution_bits)));
-        });
-
-        $loc.ledcAttachPin = new Sk.builtin.func(function(self, u8_pin, u8_channel) {
-            return promiseToSkulpt(ble.ledcAttachPin(Sk.ffi.remapToJs(u8_pin), Sk.ffi.remapToJs(u8_channel)));
-        });
-
-        $loc.ledcWrite = new Sk.builtin.func(function(self, u8_channel, u32_duty) {
-            return promiseToSkulpt(ble.ledcWrite(Sk.ffi.remapToJs(u8_channel), Sk.ffi.remapToJs(u32_duty)));
-        });
+        $loc.pinMode = new Sk.builtin.func(remapToJsFunc(ble.pinMode, 2));
+        $loc.digitalWrite = new Sk.builtin.func(remapToJsFunc(ble.digitalWrite, 2));
+        $loc.digitalRead = new Sk.builtin.func(remapToJsFunc(ble.digitalRead, 1));
+        $loc.ledcSetup = new Sk.builtin.func(remapToJsFunc(ble.ledcSetup, 3));
+        $loc.ledcAttachPin = new Sk.builtin.func(remapToJsFunc(ble.ledcAttachPin, 2));
+        $loc.ledcDetachPin = new Sk.builtin.func(remapToJsFunc(ble.ledcAttachPin, 1));
+        $loc.ledcWrite = new Sk.builtin.func(remapToJsFunc(ble.ledcWrite, 2));
 
     }, 'CellBot', []);
 
     return mod;
 }
-/* Test code
-import cellbotics
-
-# Define the pin numbers we need.
-LED1 = 2
-PB1 = 0
-
-# Set up PWM
-channel = 0
-
-# Setup
-cb = cellbotics.CellBot()
-cb.pinMode(LED1, cb.OUTPUT)
-cb.pinMode(PB1, cb.INPUT)
-cb.ledcSetup(channel, 1000, 16)
-cb.ledcAttachPin(LED1, channel)
-
-val, msg = cb.digitalRead(PB1)
-print(f"The pushbutton is {val}.")
-cb.ledcWrite(channel, 5000 + 25000*val)
-#debugger;
-*/
