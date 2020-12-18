@@ -87,12 +87,10 @@ var $builtinmodule = function(name)
             }
         });
 
-        // We can only define these if we can get to ``ble``.
-        if (ble) {
-            $loc.INPUT = new Sk.builtin.int_(ble.INPUT);
-            $loc.OUTPUT = new Sk.builtin.int_(ble.OUTPUT);
-        }
+        $loc.INPUT = new Sk.builtin.int_(CellBotBle.INPUT);
+        $loc.OUTPUT = new Sk.builtin.int_(CellBotBle.OUTPUT);
 
+        $loc.resetHardware = new Sk.builtin.func(remapToJsFunc(ble.resetHardware, 0));
         $loc.pinMode = new Sk.builtin.func(remapToJsFunc(ble.pinMode, 2));
         $loc.digitalWrite = new Sk.builtin.func(remapToJsFunc(ble.digitalWrite, 2));
         $loc.digitalRead = new Sk.builtin.func(remapToJsFunc(ble.digitalRead, 1));
