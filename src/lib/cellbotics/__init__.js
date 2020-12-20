@@ -19,76 +19,82 @@
 // ***********************************************************************
 // |docname| - JavaScript code to integrate the CellBot module into Skulpt
 // ***********************************************************************
+//
+// Utilities
+// =========
+// This function turns a JavaScript Promise into its Skulpt equivalent, a suspension.
+function promiseToPy(promise_) {
+    let susp = new Sk.misceval.Suspension();
+    let resolution;
+    let exception;
+
+    susp.resume = function() {
+        if (exception) {
+            throw exception;
+        } else {
+            return resolution;
+        }
+    }
+
+    susp.data = {
+        type: "Sk.promise",
+        promise: promise_.then(function(value) {
+            resolution = Sk.ffi.remapToPy(value);
+            return value;
+        }, function(err) {
+            exception = err;
+            return err;
+        })
+    };
+
+    return susp;
+}
+
+// Returns a function that calls the provided JavaScript function on the provided Python parameters, first converting the parameters to JavaScript.
+function remapToJsFunc(
+    // The JavaScript function to invoke.
+    js_func,
+    // The expected number of arguments for this function; if empty, no argument checking is performed. Otherwise, this parameter is passed directly to ``Sk.builtin.pyCheckArgs`` (defined in ``src/function.js``):
+    ...expected_args
+    //
+    // Note: it would be nice to simply query ``js_func`` for the number of arguments, but this is `hard <https://stackoverflow.com/questions/1007981/how-to-get-function-parameter-names-values-dynamically>`_.
+) {
+    return function(
+        // The arguments from Python.
+        ...args
+    ) {
+        if (expected_args) {
+            // Convert a number to an array, so we can use it in the spread below.
+            Sk.builtin.pyCheckArgs(js_func.toString(), args, ...expected_args);
+        }
+
+        // We don't care about converting the Python class to JS, and in fact don't need it. Strip it out. In the future, consider storing the JS class in the value returned to Python and using that.
+        args = args.slice(1);
+
+        // Convert all args to JS. Convert the return type back to Python (handling a Promise if necessary).
+        let ret = js_func(...args.map(x => Sk.ffi.remapToJs(x)));
+        return (ret instanceof Promise) ? promiseToPy(ret) : ret;
+    }
+}
+
+
+// Python cellbotics module
+// ========================
 // This is based on the instruction under the "Adding a Module" heading of `Programming Skulpt <https://skulpt.org/docs/index.html>`_.
 var $builtinmodule = function(name)
 {
     var mod = {};
     let ble = cell_bot_ble_gui && cell_bot_ble_gui.cell_bot_ble;
 
-    // This function turns a JavaScript Promise into its Skulpt equivalent, a suspension.
-    function promiseToPy(promise_) {
-        let susp = new Sk.misceval.Suspension();
-        let resolution;
-        let exception;
-
-        susp.resume = function() {
-            if (exception) {
-                throw exception;
-            } else {
-                return resolution;
-            }
-        }
-
-        susp.data = {
-            type: "Sk.promise",
-            promise: promise_.then(function(value) {
-                resolution = Sk.ffi.remapToPy(value);
-                return value;
-            }, function(err) {
-                exception = err;
-                return err;
-            })
-        };
-
-        return susp;
-    }
-
-    // Returns a function that calls the provided JavaScript function on the provided Python parameters, first converting the parameters to JavaScript.
-    function remapToJsFunc(
-        // The JavaScript function to invoke.
-        js_func,
-        // The expected number of arguments for this function; if this is empty, no argument checking is performed. Otherwise, this is passed directly to ``Sk.builtin.pyCheckArgs`` (defined in ``src/function.js``):
-        ...expected_args
-        //
-        // Note: it would be nice to simply query ``js_func`` for the number of arguments, but this is `hard <https://stackoverflow.com/questions/1007981/how-to-get-function-parameter-names-values-dynamically>`_.
-    ) {
-        return function(
-            // The arguments from Python.
-            ...args
-        ) {
-            if (expected_args) {
-                // Convert a number to an array, so we can use it in the spread below.
-                Sk.builtin.pyCheckArgs(js_func.toString(), args, ...expected_args);
-            }
-
-            // We don't care about converting the Python class to JS, and in fact don't need it. Strip it out. In the future, consider storing the JS class in the value returned to Python and using that.
-            args = args.slice(1);
-
-            // Convert all args to JS. Convert the return type back to Python (handling a Promise if necessary).
-            let ret = js_func(...args.map(x => Sk.ffi.remapToJs(x)));
-            return (ret instanceof Promise) ? promiseToPy(ret) : ret;
-        }
-    }
-
     mod.CellBot = Sk.misceval.buildClass(mod, function($gbl, $loc) {
         $loc.__init__ = new Sk.builtin.func(function(self) {
-            if (ble === undefined || !ble.paired()) {
+            if (!ble.paired()) {
                 throw "The CellBot is not paired. Click on the Pair button before running your program.";
             }
         });
 
-        $loc.INPUT = new Sk.builtin.int_(CellBotBle.INPUT);
-        $loc.OUTPUT = new Sk.builtin.int_(CellBotBle.OUTPUT);
+        $loc.INPUT = new Sk.builtin.int_(ble.INPUT);
+        $loc.OUTPUT = new Sk.builtin.int_(ble.OUTPUT);
 
         $loc.resetHardware = new Sk.builtin.func(remapToJsFunc(ble.resetHardware, 0));
         $loc.pinMode = new Sk.builtin.func(remapToJsFunc(ble.pinMode, 2));
