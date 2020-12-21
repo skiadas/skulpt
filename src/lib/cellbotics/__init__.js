@@ -91,11 +91,16 @@ var $builtinmodule = function(name)
             if (!ble.paired()) {
                 throw "The CellBot is not paired. Click on the Pair button before running your program.";
             }
+
+            // Reset the hardware before doing any other hardware operation. Since the constructor must return null, call it this way:
+            return promiseToPy(ble.resetHardware().then(() => undefined));
         });
 
+        // Define Arduino constants.
         $loc.INPUT = new Sk.builtin.int_(ble.INPUT);
         $loc.OUTPUT = new Sk.builtin.int_(ble.OUTPUT);
 
+        // Provide Arduino functions via a JavaScript RPC.
         $loc.resetHardware = new Sk.builtin.func(remapToJsFunc(ble.resetHardware, 0));
         $loc.pinMode = new Sk.builtin.func(remapToJsFunc(ble.pinMode, 2));
         $loc.digitalWrite = new Sk.builtin.func(remapToJsFunc(ble.digitalWrite, 2));
