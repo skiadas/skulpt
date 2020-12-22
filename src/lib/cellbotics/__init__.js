@@ -78,15 +78,32 @@ function remapToJsFunc(
 }
 
 
+let get_self = self => self && self.__js_class;
+
+// A handy shortcut for wrapping methods in this class.
+let method_wrap = (method_name, num_args) => new Sk.builtin.func(
+    (...args) =>
+        remapToJsFunc(get_self(args[0])[method_name], num_args, num_args)(...args)
+);
+
+let prop_wrap = prop_name => new Sk.builtin.func(
+    (...args) => {
+        Sk.builtin.pyCheckArgs(prop_name, args, 1, 1);
+        return Sk.ffi.remapToPy(get_self(args[0])[prop_name]);
+    }
+);
+
+
 // Python cellbotics module
 // ========================
 // This is based on the instruction under the "Adding a Module" heading of `Programming Skulpt <https://skulpt.org/docs/index.html>`_.
 var $builtinmodule = function(name)
 {
     var mod = {};
-    let ble = cell_bot_ble_gui && cell_bot_ble_gui.cell_bot_ble;
 
     mod.CellBot = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+        let ble = cell_bot_ble_gui && cell_bot_ble_gui.cell_bot_ble;
+
         $loc.__init__ = new Sk.builtin.func(function(self) {
             if (!ble.paired()) {
                 throw "The CellBot is not paired. Click on the Pair button before running your program.";
@@ -117,40 +134,58 @@ var $builtinmodule = function(name)
     }, 'CellBot', []);
 
 
+    // Create an "Abstract" base class that has non-functional start and stop methods.
     mod._Sensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
-        $loc.__init__ = new Sk.builtin.func(function(...args) {
-            Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
-            args[0].__js_class = new SimpleAccelerometer();
-        });
+        $loc.start = method_wrap("start", 1);
+        $loc.stop = method_wrap("stop", 1);
 
-        // A handy shortcut for wrapping methods in this class.
-        let wrap = (method_name, num_args) => new Sk.builtin.func(
-            (...args) => {
-                // Get the self object.
-                let self = args[0];
-                // Extract the JavaScript class from it if we can.
-                return remapToJsFunc(self && self.__js_class && self.__js_class[method_name], num_args, num_args)(...args);
-            }
-        );
+    }, "_Sensor", []);
 
-        let prop_wrap = prop_name => new Sk.builtin.func(
-            (...args) => {
-                Sk.builtin.pyCheckArgs(prop_name, args, 1, 1);
-                // Get the self object.
-                let self = args[0];
-                // Extract the JavaScript class from it if we can.
-                return Sk.ffi.remapToPy(self && self.__js_class && self.__js_class[prop_name]);
 
-            }
-        );
-
-        $loc.start = wrap("start", 1);
-        $loc.stop = wrap("stop", 1);
+    // Subclass this to produce another "abstract" base class for xyz readings.
+    mod._XYZSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
         $loc.x = prop_wrap("x", 1);
         $loc.y = prop_wrap("y", 1);
         $loc.z = prop_wrap("z", 1);
 
-    }, "_Sensor", []);
+    }, "_XYZSensor", [mod._Sensor]);
+
+
+    // Repeat for orientation sensors.
+    mod._OrientationSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+        $loc.quaternion = prop_wrap("quaternion", 1);
+
+    }, "_OrientationSensor", [mod._Sensor]);
+
+
+    // Create a factory for making classes for these sensors.
+    let sensor_factory = (py_name, py_superclass, js_class) =>
+        mod[py_name] = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+            $loc.__init__ = new Sk.builtin.func(function(...args) {
+                Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
+                args[0].__js_class = new js_class();
+            });
+
+        }, py_name, [py_superclass]);
+
+    // Concrete classes
+    ///================
+    mod.AmbientLightSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+        $loc.__init__ = new Sk.builtin.func(function(...args) {
+            Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
+            args[0].__js_class = new SimpleAmbientLightSensor();
+        });
+
+        $loc.illuminance = prop_wrap("illuminance");
+
+    }, "AmbientLightSensor", [mod._Sensor]);
+
+    sensor_factory("Accelerometer", mod._XYZSensor, SimpleAccelerometer);
+    sensor_factory("Gyroscope", mod._XYZSensor, SimpleGyroscope);
+    sensor_factory("Magnetometer", mod._XYZSensor, SimpleMagnetometer);
+    sensor_factory("LinearAccelerationSensor", mod._XYZSensor, SimpleLinearAccelerationSensor);
+    sensor_factory("AbsoluteOrientationSensor", mod._OrientationSensor, SimpleAbsoluteOrientationSensor);
+    sensor_factory("RelativeOrientationSensor", mod._OrientationSensor, SimpleRelativeOrientationSensor);
 
     return mod;
 }
