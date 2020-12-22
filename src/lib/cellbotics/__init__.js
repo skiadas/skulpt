@@ -65,10 +65,10 @@ function remapToJsFunc(
     ) {
         if (expected_args) {
             // Convert a number to an array, so we can use it in the spread below.
-            Sk.builtin.pyCheckArgs(js_func.toString(), args, ...expected_args);
+            Sk.builtin.pyCheckArgs(js_func.name, args, ...expected_args);
         }
 
-        // We don't care about converting the Python class to JS, and in fact don't need it. Strip it out. In the future, consider storing the JS class in the value returned to Python and using that.
+        // Drop the first argument (self) when calling the JavaScript equivalent -- the function to call is already a method of a class, so ``self`` isn't needed.
         args = args.slice(1);
 
         // Convert all args to JS. Convert the return type back to Python (handling a Promise if necessary).
@@ -100,17 +100,57 @@ var $builtinmodule = function(name)
         $loc.INPUT = new Sk.builtin.int_(ble.INPUT);
         $loc.OUTPUT = new Sk.builtin.int_(ble.OUTPUT);
 
+        // The way we wrap all these JavaScript methods to embed them in Skulpt.
+        let wrap = (f, num_args) =>
+            new Sk.builtin.func(remapToJsFunc(f, num_args, num_args));
+
         // Provide Arduino functions via a JavaScript RPC.
-        $loc.resetHardware = new Sk.builtin.func(remapToJsFunc(ble.resetHardware, 0));
-        $loc.pinMode = new Sk.builtin.func(remapToJsFunc(ble.pinMode, 2));
-        $loc.digitalWrite = new Sk.builtin.func(remapToJsFunc(ble.digitalWrite, 2));
-        $loc.digitalRead = new Sk.builtin.func(remapToJsFunc(ble.digitalRead, 1));
-        $loc.ledcSetup = new Sk.builtin.func(remapToJsFunc(ble.ledcSetup, 3));
-        $loc.ledcAttachPin = new Sk.builtin.func(remapToJsFunc(ble.ledcAttachPin, 2));
-        $loc.ledcDetachPin = new Sk.builtin.func(remapToJsFunc(ble.ledcAttachPin, 1));
-        $loc.ledcWrite = new Sk.builtin.func(remapToJsFunc(ble.ledcWrite, 2));
+        $loc.resetHardware = wrap(ble.resetHardware, 1);
+        $loc.pinMode = wrap(ble.pinMode, 3);
+        $loc.digitalWrite = wrap(ble.digitalWrite, 3);
+        $loc.digitalRead = wrap(ble.digitalRead, 2);
+        $loc.ledcSetup = wrap(ble.ledcSetup, 4);
+        $loc.ledcAttachPin = wrap(ble.ledcAttachPin, 3);
+        $loc.ledcDetachPin = wrap(ble.ledcDetachPin, 2);
+        $loc.ledcWrite = wrap(ble.ledcWrite, 3);
 
     }, 'CellBot', []);
+
+
+    mod._Sensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+        $loc.__init__ = new Sk.builtin.func(function(...args) {
+            Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
+            args[0].__js_class = new SimpleAccelerometer();
+        });
+
+        // A handy shortcut for wrapping methods in this class.
+        let wrap = (method_name, num_args) => new Sk.builtin.func(
+            (...args) => {
+                // Get the self object.
+                let self = args[0];
+                // Extract the JavaScript class from it if we can.
+                return remapToJsFunc(self && self.__js_class && self.__js_class[method_name], num_args, num_args)(...args);
+            }
+        );
+
+        let prop_wrap = prop_name => new Sk.builtin.func(
+            (...args) => {
+                Sk.builtin.pyCheckArgs(prop_name, args, 1, 1);
+                // Get the self object.
+                let self = args[0];
+                // Extract the JavaScript class from it if we can.
+                return Sk.ffi.remapToPy(self && self.__js_class && self.__js_class[prop_name]);
+
+            }
+        );
+
+        $loc.start = wrap("start", 1);
+        $loc.stop = wrap("stop", 1);
+        $loc.x = prop_wrap("x", 1);
+        $loc.y = prop_wrap("y", 1);
+        $loc.z = prop_wrap("z", 1);
+
+    }, "_Sensor", []);
 
     return mod;
 }
