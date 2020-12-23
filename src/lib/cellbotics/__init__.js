@@ -180,10 +180,27 @@ var $builtinmodule = function(name)
 
     }, "AmbientLightSensor", [mod._Sensor]);
 
+    mod.GeolocationSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+        $loc.__init__ = new Sk.builtin.func(function(...args) {
+            Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
+            args[0].__js_class = new SimpleGeolocationSensor();
+        });
+
+        $loc.latitude = prop_wrap("latitude");
+        $loc.longitude = prop_wrap("longitude");
+        $loc.altitude = prop_wrap("altitude");
+        $loc.accuracy = prop_wrap("accuracy");
+        $loc.altitudeAccuracy = prop_wrap("altitudeAccuracy");
+        $loc.heading = prop_wrap("heading");
+        $loc.speed = prop_wrap("speed");
+
+    }, "GeolocationSensor", [mod._Sensor]);
+
     sensor_factory("Accelerometer", mod._XYZSensor, SimpleAccelerometer);
     sensor_factory("Gyroscope", mod._XYZSensor, SimpleGyroscope);
     sensor_factory("Magnetometer", mod._XYZSensor, SimpleMagnetometer);
     sensor_factory("LinearAccelerationSensor", mod._XYZSensor, SimpleLinearAccelerationSensor);
+    sensor_factory("GravitySensor", mod._XYZSensor, SimpleGravitySensor);
     sensor_factory("AbsoluteOrientationSensor", mod._OrientationSensor, SimpleAbsoluteOrientationSensor);
     sensor_factory("RelativeOrientationSensor", mod._OrientationSensor, SimpleRelativeOrientationSensor);
 
