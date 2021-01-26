@@ -14,15 +14,23 @@ class TestCaseGui(TestCase):
         # grading "off screen"
         if self.mydiv is None:
             self.mydiv = document.createElement("div")
+            self.mydiv.setAttribute("id", self.divid + "_offscreen_unit_results")
+            self.mydiv.setCSS("display", "none")
+            body = document.getElementsByTagName("body")[0]
+            body.appendChild(self.mydiv)
+            self.unit_results_divid = self.divid + "_offscreen_unit_results"
+
         res = document.getElementById(self.divid + "_unit_results")
         if res:
             self.resdiv = res
             res.innerHTML = ""
+            self.unit_results_divid = self.divid + "_unit_results"
         else:
             self.resdiv = document.createElement("div")
             self.resdiv.setAttribute("id", self.divid + "_unit_results")
             self.resdiv.setAttribute("class", "unittest-results")
             self.mydiv.appendChild(self.resdiv)
+            self.unit_results_divid = self.divid + "_unit_results"
 
     def main(self):
         t = document.createElement("table")
@@ -34,7 +42,7 @@ class TestCaseGui(TestCase):
             self.is_timed = False
         self.resdiv.appendChild(self.resTable)
         if self.is_timed:
-            self.resdiv.setCSS('display','none')
+            self.resdiv.setCSS("display", "none")
 
         headers = ["Result", "Actual Value", "Expected Value", "Notes"]
         row = document.createElement("tr")
@@ -154,17 +162,6 @@ class TestCaseGui(TestCase):
 
     def showSummary(self):
         pct = float(self.numPassed) / (self.numPassed + self.numFailed) * 100
-        pTag = document.createElement("p")
-        if not self.is_timed:
-            pTag.innerHTML = "You passed: " + str(pct) + "% of the tests"
-            self.resdiv.appendChild(pTag)
-        else:
-            # This is a little hacky
-            try:
-                jseval("window.edList['{}'].pct_correct = {}".format(self.closestDiv, pct))
-            except:
-                print("failed to find object to record unittest results - they are on the server")
-
         pctcorrect = (
             "percent:"
             + str(pct)
@@ -173,14 +170,26 @@ class TestCaseGui(TestCase):
             + ":failed:"
             + str(self.numFailed)
         )
-        course = document.currentCourse()
-        if jseval("Sk.logResults"):
-            urlopen(
-                "/runestone/ajax/hsblog",
-                "event=unittest&div_id="
-                + self.divid
-                + "&act="
-                + pctcorrect
-                + "&course="
-                + course,
+        pTag = document.createElement("p")
+        if not self.is_timed:
+            pTag.innerHTML = "You passed: " + str(pct) + "% of the tests"
+            self.resdiv.appendChild(pTag)
+        try:
+            jseval("window.edList['{}'].pct_correct = {}".format(self.closestDiv, pct))
+            jseval(
+                "window.edList['{}'].unit_results = '{}'".format(
+                    self.closestDiv, pctcorrect
+                )
+            )
+            jseval(
+                "window.edList['{}'].unit_results_divid = '{}'".format(
+                    self.closestDiv, self.mydiv.getAttribute("id")
+                )
+            )
+
+        except:
+            print(
+                "failed to find object to record unittest results! {}".format(
+                    pctcorrect
+                )
             )
