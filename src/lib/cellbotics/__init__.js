@@ -19,7 +19,18 @@
 // ***********************************************************************
 // |docname| - JavaScript code to integrate the CellBot module into Skulpt
 // ***********************************************************************
+// TODO: Need to write user-level documentation on what exactly was wrapped and what it does.
 //
+// Approach
+// ========
+// This is a somewhat unusual Python module: it relies on JavaScript code not stored in Skulpt, because:
+//
+// #.   The "Pair" button need to access JavaScript code that's available before this module is imported by Python. So, the code in ``ble.js`` cannot be placed in this module. Instead, it's hosted in Runestone Components.
+// #.   The JavaScript backend consists of several JavaScript files; there's not an easy way to include a bunch of JS files in Skulpt. Things that don't work: making each a fake Python module (they're evaled in separate namespaces), directly evaling the JS code stored in Sk.builtinFiles.files (same reason). So, these are hosted in Runestone Components.
+
+"use strict";
+
+
 // Utilities
 // =========
 // This function turns a JavaScript Promise into its Skulpt equivalent, a suspension.
@@ -50,6 +61,12 @@ function promiseToPy(promise_) {
     return susp;
 }
 
+
+// Given a JavaScript return value, remap it to Python. If it's a Promise, convert to a suspension.
+function remapToPy(value) {
+    return (value instanceof Promise) ? promiseToPy(value) : Sk.ffi.remapToPy(value);
+}
+
 // Returns a function that calls the provided JavaScript function on the provided Python parameters, first converting the parameters to JavaScript.
 function remapToJsFunc(
     // The JavaScript function to invoke.
@@ -73,36 +90,61 @@ function remapToJsFunc(
 
         // Convert all args to JS. Convert the return type back to Python (handling a Promise if necessary).
         let ret = js_func(...args.map(x => Sk.ffi.remapToJs(x)));
-        return (ret instanceof Promise) ? promiseToPy(ret) : ret;
+        return remapToPy(ret);
     }
 }
 
-
-let get_self = self => self && self.__js_class;
-
-// A handy shortcut for wrapping methods in this class.
-let method_wrap = (method_name, num_args) => new Sk.builtin.func(
-    (...args) =>
-        remapToJsFunc(get_self(args[0])[method_name], num_args, num_args)(...args)
-);
-
-let prop_wrap = prop_name => new Sk.builtin.func(
-    (...args) => {
-        Sk.builtin.pyCheckArgs(prop_name, args, 1, 1);
-        return Sk.ffi.remapToPy(get_self(args[0])[prop_name]);
-    }
-);
-
-
 // Python cellbotics module
 // ========================
-// This is based on the instruction under the "Adding a Module" heading of `Programming Skulpt <https://skulpt.org/docs/index.html>`_.
+// This is based on the instructions under the "Adding a Module" heading of `Programming Skulpt <https://skulpt.org/docs/index.html>`_.
 var $builtinmodule = function(name)
 {
-    var mod = {};
+    var mod = {__name__: new Sk.builtin.str("cellbotics")};
 
+    // Provide a way to get a Python object's underlying JavaScript class, which is stored in its ``__js_class`` attribute. Avoid errors if ``self`` isn't valid.
+    let get_self = self => self && self.__js_class;
+
+
+    // Python/JavaScript property bridge
+    ///=================================
+    // Create a class that converts a JavaScript read-only property into a Python read-only property. To do this, define a class with a `Python descriptor <https://docs.python.org/3/howto/descriptor.html>`_.
+    mod.JsProperty = Sk.misceval.buildClass(mod, function($gbl, $loc) {
+
+        // Store the JavaScript property name this class returns, since there's not a nice way to introspect a class instance's name in Python. Arguments are ``self``, ``property_name`` -- a JavaScript string specifying the name of the property to return.
+        $loc.__init__ = new Sk.builtin.func(function(...args) {
+            // Check and assign the arguments.
+            Sk.builtin.pyCheckArgs("__init__", args, 2, 2);
+            let [self, property_name] = args;
+            // The property name is available only to JavaScript, since that's the only code that uses it.
+            self.__js_property = Sk.ffi.remapToJs(property_name);
+        });
+
+        // The ``__get__`` method provides read-only property access.
+        $loc.__get__ = new Sk.builtin.func(function(...args) {
+            // Check and assign the arguments.
+            Sk.builtin.pyCheckArgs("__get__", args, 2, 3);
+            let [self, obj, objtype] = args;
+            // Python passes the object containing this class as ``obj``. From that, retrieve the JavaScript class to use.
+            let js_class = get_self(obj);
+            // Return the property of the class configured in the constructor above.
+            return remapToPy(js_class[self.__js_property]);
+        });
+    }, 'JsProperty', []);
+
+    // Given the property name as JavaScript string, return an instance of the ``JsProperty`` class whose getter method retrieves this property from the underlying JavaScript object.
+    let prop_wrap = prop_name => Sk.misceval.callsim(mod.JsProperty, new Sk.builtins['str'](prop_name));
+
+
+    // CellBot
+    ///=======
+    // Create the main CellBot class.
     mod.CellBot = Sk.misceval.buildClass(mod, function($gbl, $loc) {
-        let ble = cell_bot_ble_gui && cell_bot_ble_gui.cell_bot_ble;
+        let ble = undefined;
+        try {
+            ble = runestone.cell_bot_ble_gui.cell_bot_ble;
+        } catch (err) {
+            throw "Unable to access CellBotics JavaScript -- perhaps the JavaScript support files for Bluetooth Low Energy (ble.js) are missing.";
+        }
 
         $loc.__init__ = new Sk.builtin.func(function(self) {
             if (!ble.paired()) {
@@ -134,13 +176,22 @@ var $builtinmodule = function(name)
     }, 'CellBot', []);
 
 
+    // Sensors
+    ///=======
+    // These function wrap the sensors in ``SimpleSensors.js``.
+    //
+    // A handy shortcut for wrapping methods in this class.
+    let method_wrap = (method_name, num_args) => new Sk.builtin.func(
+        (...args) =>
+            remapToJsFunc(get_self(args[0])[method_name], num_args, num_args)(...args)
+    );
+
     // Create an "Abstract" base class that has non-functional start and stop methods.
     mod._Sensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
         $loc.start = method_wrap("start", 1);
         $loc.stop = method_wrap("stop", 1);
 
     }, "_Sensor", []);
-
 
     // Subclass this to produce another "abstract" base class for xyz readings.
     mod._XYZSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
@@ -169,11 +220,11 @@ var $builtinmodule = function(name)
         }, py_name, [py_superclass]);
 
     // Concrete classes
-    ///================
+    ///----------------
     mod.AmbientLightSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
         $loc.__init__ = new Sk.builtin.func(function(...args) {
             Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
-            args[0].__js_class = new SimpleAmbientLightSensor();
+            args[0].__js_class = new runestone.SimpleAmbientLightSensor();
         });
 
         $loc.illuminance = prop_wrap("illuminance");
@@ -183,7 +234,7 @@ var $builtinmodule = function(name)
     mod.GeolocationSensor = Sk.misceval.buildClass(mod, function($gbl, $loc) {
         $loc.__init__ = new Sk.builtin.func(function(...args) {
             Sk.builtin.pyCheckArgs("__init__", [args], 1, 1);
-            args[0].__js_class = new SimpleGeolocationSensor();
+            args[0].__js_class = new runestone.SimpleGeolocationSensor();
         });
 
         $loc.latitude = prop_wrap("latitude");
@@ -196,13 +247,13 @@ var $builtinmodule = function(name)
 
     }, "GeolocationSensor", [mod._Sensor]);
 
-    sensor_factory("Accelerometer", mod._XYZSensor, SimpleAccelerometer);
-    sensor_factory("Gyroscope", mod._XYZSensor, SimpleGyroscope);
-    sensor_factory("Magnetometer", mod._XYZSensor, SimpleMagnetometer);
-    sensor_factory("LinearAccelerationSensor", mod._XYZSensor, SimpleLinearAccelerationSensor);
-    sensor_factory("GravitySensor", mod._XYZSensor, SimpleGravitySensor);
-    sensor_factory("AbsoluteOrientationSensor", mod._OrientationSensor, SimpleAbsoluteOrientationSensor);
-    sensor_factory("RelativeOrientationSensor", mod._OrientationSensor, SimpleRelativeOrientationSensor);
+    sensor_factory("Accelerometer", mod._XYZSensor, runestone.SimpleAccelerometer);
+    sensor_factory("Gyroscope", mod._XYZSensor, runestone.SimpleGyroscope);
+    sensor_factory("Magnetometer", mod._XYZSensor, runestone.SimpleMagnetometer);
+    sensor_factory("LinearAccelerationSensor", mod._XYZSensor, runestone.SimpleLinearAccelerationSensor);
+    sensor_factory("GravitySensor", mod._XYZSensor, runestone.SimpleGravitySensor);
+    sensor_factory("AbsoluteOrientationSensor", mod._OrientationSensor, runestone.SimpleAbsoluteOrientationSensor);
+    sensor_factory("RelativeOrientationSensor", mod._OrientationSensor, runestone.SimpleRelativeOrientationSensor);
 
     return mod;
 }
