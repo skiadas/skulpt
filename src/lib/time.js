@@ -10,7 +10,6 @@
 var $builtinmodule = function (name) {
     var mod = {};
 
-    mod.__file__ = "/src/lib/time/__init__.js";
 
     mod.__package__ = new Sk.builtin.str("");
 
@@ -285,7 +284,7 @@ var $builtinmodule = function (name) {
         }
         if (!t)
         {
-            t = localtime_f();
+            t = from_seconds();
         } else if (!(t instanceof struct_time_f)) {
             t = new struct_time_f(t);
         }

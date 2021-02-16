@@ -111,7 +111,7 @@ var $builtinmodule = function (name) {
 
     elementClass = function ($gbl, $loc) {
         /*
-         Notes:  self['$d'] is the dictionary used by the GenericGetAttr mechanism for an object.
+         Notes:  self['$d'] is the dictionary used by the generic.getAttr mechanism for an object.
          for various reasons  if you create a class in Javascript and have self.xxxx instance
          variables, you cannot say instance.xxx and get the value of the instance variable unless
          it is stored in the self['$d'] object.  This seems like a duplication of storage to me
@@ -121,17 +121,17 @@ var $builtinmodule = function (name) {
          a method...
          */
         $loc.__init__ = new Sk.builtin.func(function (self, elem) {
-            self.v = elem
-            self.innerHTML = elem.innerHTML
-            self.innerText = elem.innerText
+            self.v = elem;
+            self.innerHTML = elem.innerHTML;
+            self.innerText = elem.innerText;
             if (elem.value !== undefined) {
-                self.value = elem.value
+                self.value = elem.value;
                 Sk.abstr.objectSetItem(self['$d'], new Sk.builtin.str('value'), new Sk.builtin.str(self.value))
             }
 
             if (elem.checked !== undefined) {
-                self.checked = elem.checked
-                Sk.abstr.objectSetItem(self['$d'], new Sk.builtin.str('checked'), new Sk.builtin.str(self.checked))
+                self.checked = elem.checked;
+                Sk.abstr.objectSetItem(self['$d'], new Sk.builtin.str('checked'), Sk.builtin.bool(self.checked))
             }
 
             Sk.abstr.objectSetItem(self['$d'], new Sk.builtin.str('innerHTML'), new Sk.builtin.str(self.innerHTML))
@@ -139,24 +139,7 @@ var $builtinmodule = function (name) {
 
         })
 
-        $loc._internalGenericGetAttr = Sk.builtin.object.prototype.GenericGetAttr;
-        $loc.__getattr__ = new Sk.builtin.func(function (self, name) {
-            if (name != null && (Sk.builtin.checkString(name) || typeof name === "string")) {
-                var _name = name;
-
-                // get javascript string
-                if (Sk.builtin.checkString(name)) {
-                    _name = Sk.ffi.remapToJs(name);
-                }
-
-                var res = self.v[_name];
-                if (res != undefined) {
-                    return Sk.misceval.callsimArray(mod.Element, [res]);
-                }
-            }
-
-            return $loc._internalGenericGetAttr(name);
-        });
+        $loc.tp$getattr = Sk.generic.getAttr;
 
         $loc.__setattr__ = new Sk.builtin.func(function (self, key, value) {
             key = Sk.ffi.remapToJs(key);
