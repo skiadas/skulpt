@@ -154,6 +154,7 @@ class TestCaseGui(TestCase):
             expandbutton.innerHTML = "Expand Differences"
             expandmsg = "Actual: " + str(actual) + "\nExpected: " + str(expected)
             expandbutton.setAttribute("value", expandmsg)
+            expandbutton.setAttribute("type", "button")
             expandbutton.setAttribute("onclick", "alert(this.value)")
             expandbutton.setAttribute("class", "btn btn-info")
             row.appendChild(expandbutton)
