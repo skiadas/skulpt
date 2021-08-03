@@ -4,13 +4,8 @@
 
 Skulpt is a Javascript implementation of Python 2.x. Python that runs in your browser! Python that runs on your iPad! Its being used several projects including, [Interactive Python Textbooks](http://interactivepython.org) -- You can see skulpt in action there.  Try out [some turtle graphics examples](http://interactivepython.org/runestone/static/thinkcspy/PythonTurtle/InstancesAHerdofTurtles.html) to see Skulpt in action.
 
-The RunestoneInteractive Fork of skulpt contains integrations and modules to make skulpt work with features of
-Runestone Interactive that would not make sense to keep in the general distribution of Skulpt.  for example
+![Build Status](https://github.com/skulpt/skulpt/actions/workflows/test.yml/badge.svg)
 
-* the GUI version of the unittest module
-* the pythonds package of data structures
-
-[![Build Status](https://travis-ci.org/skulpt/skulpt.png)](https://travis-ci.org/skulpt/skulpt)
 
 ## Origins
 

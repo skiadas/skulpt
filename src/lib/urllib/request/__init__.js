@@ -156,6 +156,7 @@ var $builtinmodule = function (name) {
             });
         }
         var susp = new Sk.misceval.Suspension();
+        var resolution;
 
         susp.resume = function() {
             return resolution;
