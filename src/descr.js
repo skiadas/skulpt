@@ -19,7 +19,7 @@ function buildDescriptor(type_name, repr_name, descr_options) {
             d$check: descriptorCheck,
             d$set_check: descriptorSetCheck,
         }),
-        flags: { sk$acceptable_as_base_class: false },
+        flags: { sk$unacceptableBase: true },
     });
     return descr;
 }
@@ -354,7 +354,7 @@ Sk.builtin.classmethod_descriptor = buildDescriptor("classmethod_descriptor", "m
                     );
                 }
             }
-            if (type.ob$type !== Sk.builtin.type) {
+            if (!type.ob$type.$isSubType(Sk.builtin.type)) {
                 throw new Sk.builtin.TypeError(
                     "descriptor '" +
                         this.d$name +
