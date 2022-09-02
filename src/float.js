@@ -31,7 +31,7 @@ Sk.builtin.float_ = Sk.abstr.buildNativeClass("float", {
         }
     },
     slots: /**@lends {Sk.builtin.float_.prototype} */ {
-        tp$gettattr: Sk.generic.getAttr,
+        tp$getattr: Sk.generic.getAttr,
         tp$as_number: true,
         tp$doc: "Convert a string or number to a floating point number, if possible.",
         tp$hash() {
@@ -242,6 +242,11 @@ Sk.builtin.float_ = Sk.abstr.buildNativeClass("float", {
             $doc: Sk.builtin.none.none$,
         },
     },
+    proto: {
+        valueOf() {
+            return this.v;
+        }
+    }
 });
 
 function frexp(arg) {
