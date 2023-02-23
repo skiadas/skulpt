@@ -39,6 +39,9 @@ $builtinmodule = function (name) {
             Sk.builtin.pyCheckArgsLen("__init__", arguments.length, 2, 2);
             try {
                 self.image = document.getElementById(Sk.ffi.remapToJs(imageId));
+                if (self.image == null) {
+                    self.image = document.querySelector(`[data-filename="${Sk.ffi.remapToJs(imageId)}"]`)
+                }
                 initializeImage(self);
             } catch (e) {
                 self.image = null;
