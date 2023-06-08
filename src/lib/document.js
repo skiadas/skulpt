@@ -55,5 +55,23 @@ function $builtinmodule() {
         }
     });
 
+    documentMod.getCurrentEditorValue = new Sk.builtin.func(function () {
+        if (Sk.divid !== undefined && window.edList !== undefined) {
+            if (Sk.gradeContainer != Sk.divid) {
+                var edKey = Sk.gradeContainer + " " + Sk.divid;
+                return new Sk.builtin.str(
+                    window.edList[edKey].editor.getValue()
+                );
+            }
+            return new Sk.builtin.str(
+                window.edList[Sk.divid].editor.getValue()
+            );
+        } else {
+            throw new Sk.builtin.AttributeError(
+                "Can't find editor for this div"
+            );
+        }
+    });
+
     return documentMod;
 }
