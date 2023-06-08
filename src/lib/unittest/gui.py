@@ -149,7 +149,7 @@ class TestCaseGui(TestCase):
         inp.style.textAlign = "center"
         row.appendChild(inp)
 
-        def foo():
+        def foo(evt):
             document.popup(expandmsg)
 
         if trimActual or trimExpected:
@@ -179,14 +179,18 @@ class TestCaseGui(TestCase):
             pTag.innerHTML = "You passed: " + str(pct) + "% of the tests"
             self.resdiv.appendChild(pTag)
         try:
-            jseval("window.edList['{}'].pct_correct = {}".format(self.closestDiv, pct))
             jseval(
-                "window.edList['{}'].unit_results = '{}'".format(
+                "window.componentMap['{}'].pct_correct = {}".format(
+                    self.closestDiv, pct
+                )
+            )
+            jseval(
+                "window.componentMap['{}'].unit_results = '{}'".format(
                     self.closestDiv, pctcorrect
                 )
             )
             jseval(
-                "window.edList['{}'].unit_results_divid = '{}'".format(
+                "window.componentMap['{}'].unit_results_divid = '{}'".format(
                     self.closestDiv, self.mydiv.getAttribute("id")
                 )
             )
