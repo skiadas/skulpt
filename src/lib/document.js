@@ -73,5 +73,10 @@ function $builtinmodule() {
         }
     });
 
+    documentMod.popup = new Sk.builtin.func(function (pyMessage) {
+        const message = Sk.ffi.remapToJs(pyMessage);
+        alert(message);
+    });
+
     return documentMod;
 }

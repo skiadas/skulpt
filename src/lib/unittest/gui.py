@@ -14,8 +14,8 @@ class TestCaseGui(TestCase):
         # grading "off screen"
         if self.mydiv is None:
             self.mydiv = document.createElement("div")
-            self.mydiv.setAttribute("id", self.divid + "_offscreen_unit_results")
-            self.mydiv.setCSS("display", "none")
+            self.mydiv.id = self.divid + "_offscreen_unit_results"
+            self.mydiv.style.display = "none"
             body = document.getElementsByTagName("body")[0]
             body.appendChild(self.mydiv)
             self.unit_results_divid = self.divid + "_offscreen_unit_results"
@@ -27,8 +27,8 @@ class TestCaseGui(TestCase):
             self.unit_results_divid = self.divid + "_unit_results"
         else:
             self.resdiv = document.createElement("div")
-            self.resdiv.setAttribute("id", self.divid + "_unit_results")
-            self.resdiv.setAttribute("class", "unittest-results")
+            self.resdiv.id = self.divid + "_unit_results"
+            self.resdiv.classList.add("unittest-results")
             self.mydiv.appendChild(self.resdiv)
             self.unit_results_divid = self.divid + "_unit_results"
 
@@ -42,15 +42,15 @@ class TestCaseGui(TestCase):
             self.is_timed = False
         self.resdiv.appendChild(self.resTable)
         if self.is_timed:
-            self.resdiv.setCSS("display", "none")
+            self.resdiv.style.display = "none"
 
         headers = ["Result", "Actual Value", "Expected Value", "Notes"]
         row = document.createElement("tr")
         for item in headers:
             head = document.createElement("th")
-            head.setAttribute("class", "ac-feedback")
+            head.classList.add("ac-feedback")
             head.innerHTML = item
-            head.setCSS("text-align", "center")
+            head.style.textAlign = "center"
             row.appendChild(head)
         self.resTable.appendChild(row)
 
@@ -93,30 +93,30 @@ class TestCaseGui(TestCase):
             err = True
             msg = "Error: %s" % param
             errorData = document.createElement("td")
-            errorData.setAttribute("class", "ac-feedback")
+            errorData.classList.add("ac-feedback")
             errorData.innerHTML = "ERROR"
-            errorData.setCSS("background-color", "#de8e96")
-            errorData.setCSS("text-align", "center")
+            errorData.style.backgroundColor = "#de8e96"
+            errorData.style.textAlign = "center"
             row.appendChild(errorData)
         elif res:
             passed = document.createElement("td")
-            passed.setAttribute("class", "ac-feedback")
+            passed.classList.add("ac-feedback")
             passed.innerHTML = "Pass"
-            passed.setCSS("background-color", "#83d382")
-            passed.setCSS("text-align", "center")
+            passed.style.backgroundColor = "#83d382"
+            passed.style.textAlign = "center"
             row.appendChild(passed)
             self.numPassed += 1
         else:
             fail = document.createElement("td")
-            fail.setAttribute("class", "ac-feedback")
+            fail.classList.add("ac-feedback")
             fail.innerHTML = "Fail"
-            fail.setCSS("background-color", "#de8e96")
-            fail.setCSS("text-align", "center")
+            fail.style.backgroundColor = "#de8e96"
+            fail.style.textAlign = "center"
             row.appendChild(fail)
             self.numFailed += 1
 
         act = document.createElement("td")
-        act.setAttribute("class", "ac-feedback")
+        act.classList.add("ac-feedback")
         if trimActual:
             actHTML = str(actual)[:5] + "..." + str(actual)[-5:]
             if actualType == str:
@@ -124,11 +124,11 @@ class TestCaseGui(TestCase):
             act.innerHTML = actHTML
         else:
             act.innerHTML = repr(actual)
-        act.setCSS("text-align", "center")
+        act.style.textAlign = "center"
         row.appendChild(act)
 
         expect = document.createElement("td")
-        expect.setAttribute("class", "ac-feedback")
+        expect.classList.add("ac-feedback")
 
         if trimExpected:
             expectedHTML = str(expected)[:5] + "..." + str(expected)[-5:]
@@ -137,26 +137,29 @@ class TestCaseGui(TestCase):
             expect.innerHTML = expectedHTML
         else:
             expect.innerHTML = repr(expected)
-        expect.setCSS("text-align", "center")
+        expect.style.textAlign = "center"
         row.appendChild(expect)
         inp = document.createElement("td")
-        inp.setAttribute("class", "ac-feedback")
+        inp.classList.add("ac-feedback")
 
         if err:
             inp.innerHTML = msg
         else:
             inp.innerHTML = param
-        inp.setCSS("text-align", "center")
+        inp.style.textAlign = "center"
         row.appendChild(inp)
+
+        def foo():
+            document.popup(expandmsg)
 
         if trimActual or trimExpected:
             expandbutton = document.createElement("button")
             expandbutton.innerHTML = "Expand Differences"
             expandmsg = "Actual: " + str(actual) + "\nExpected: " + str(expected)
-            expandbutton.setAttribute("value", expandmsg)
-            expandbutton.setAttribute("type", "button")
-            expandbutton.setAttribute("onclick", "alert(this.value)")
-            expandbutton.setAttribute("class", "btn btn-info")
+            expandbutton.value = expandmsg
+            expandbutton.type = "button"
+            expandbutton.addEventListener("click", foo)
+            expandbutton.classList.add("btn btn-info")
             row.appendChild(expandbutton)
 
         self.resTable.appendChild(row)
