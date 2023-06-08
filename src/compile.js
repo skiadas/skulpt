@@ -685,32 +685,6 @@ Compiler.prototype.ccall = function (e) {
     let positionalArgs = this.cunpackstarstoarray(e.args, !Sk.__future__.python3);
     let keywordArgs = this.cunpackkwstoarray(e.keywords, func);
 
-    if (e.keywords && e.keywords.length > 0) {
-        let hasStars = false;
-        kwarray = [];
-        for (let kw of e.keywords) {
-            if (hasStars && !Sk.__future__.python3) {
-                throw new Sk.builtin.SyntaxError("Advanced unpacking of function arguments is not supported in Python 2");
-            }
-            if (kw.arg) {
-                kwarray.push("'" + kw.arg.v + "'");
-                kwarray.push(this.vexpr(kw.value));
-            } else {
-                hasStars = true;
-            }
-        }
-        keywordArgs = "[" + kwarray.join(",") + "]";
-        if (hasStars) {
-            keywordArgs = this._gr("keywordArgs", keywordArgs);
-            for (let kw of e.keywords) {
-                if (!kw.arg) {
-                    out("$ret = Sk.abstr.mappingUnpackIntoKeywordArray(",keywordArgs,",",this.vexpr(kw.value),",",func,");");
-                    this._checkSuspension();
-                }
-            }
-        }
-    }
-
     if (Sk.__future__.super_args && e.func.id && e.func.id.v === "super" && positionalArgs === "[]") {
         // make sure there is a self variable
         // note that it's part of the js API spec: https://developer.mozilla.org/en/docs/Web/API/Window/self
@@ -1127,7 +1101,7 @@ Compiler.prototype.cannassign = function (s) {
             if (s.simple && (this.u.ste.blockType === Sk.SYMTAB_CONSTS.ClassBlock || this.u.ste.blockType == Sk.SYMTAB_CONSTS.ModuleBlock)) {
                 this.u.hasAnnotations = true;
                 const val = this.vexpr(s.annotation);
-                let mangled = fixReserved(mangleName(this.u.private_, target.id).v);
+                let mangled = mangleName(this.u.private_, target.id).v;
                 const key = this.makeConstant("new Sk.builtin.str('" + mangled + "')");
                 this.chandlesubscr(Sk.astnodes.Store, "$loc.__annotations__", key, val);
             }
@@ -1418,19 +1392,6 @@ Compiler.prototype.cwhile = function (s) {
         this._jump(top);
         this.setBlock(top);
 
-        next = this.newBlock("after while");
-        orelse = s.orelse.length > 0 ? this.newBlock("while orelse") : null;
-        body = this.newBlock("while body");
-
-        this.annotateSource(s);
-        this._jumpfalse(this.vexpr(s.test), orelse ? orelse : next);
-        this._jump(body);
-
-        this.pushBreakBlock(next);
-        this.pushContinueBlock(top);
-
-        this.setBlock(body);
-
         if ((Sk.debugging || Sk.killableWhile) && this.u.canSuspend) {
             var suspType = "Sk.delay";
             var debugBlock = this.newBlock("debug breakpoint for line "+s.lineno);
@@ -1444,6 +1405,19 @@ Compiler.prototype.cwhile = function (s) {
             this.setBlock(debugBlock);
             this.u.doesSuspend = true;
         }
+
+        next = this.newBlock("after while");
+        orelse = s.orelse.length > 0 ? this.newBlock("while orelse") : null;
+        body = this.newBlock("while body");
+
+        this.annotateSource(s);
+        this._jumpfalse(this.vexpr(s.test), orelse ? orelse : next);
+        this._jump(body);
+
+        this.pushBreakBlock(next);
+        this.pushContinueBlock(top);
+
+        this.setBlock(body);
 
         this.vseqstmt(s.body);
 
@@ -2099,10 +2073,12 @@ Compiler.prototype.buildcodeobj = function (n, coname, decorator_list, args, cal
         } else {
             this.u.varDeclsCode += "\nvar $args = this.$resolveArgs($posargs,$kwargs)\n";
         }
-        const sup_i = kwarg ? 1 : 0;
         for (let i = 0; i < funcArgs.length; i++) {
-            const sup = i === sup_i ? "$sup = " : "";
-            this.u.varDeclsCode += "," + sup + funcArgs[i] + "=$args[" + i + "]";
+            this.u.varDeclsCode += "," + funcArgs[i] + "=$args[" + i + "]";
+        }
+        const instanceForSuper = funcArgs[kwarg ? 1 : 0];
+        if (instanceForSuper) {
+            this.u.varDeclsCode += `,$sup=${instanceForSuper}`;
         }
         this.u.varDeclsCode += ";\n";
     }
