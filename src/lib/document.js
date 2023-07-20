@@ -56,15 +56,15 @@ function $builtinmodule() {
     });
 
     documentMod.getCurrentEditorValue = new Sk.builtin.func(function () {
-        if (Sk.divid !== undefined && window.edList !== undefined) {
+        if (Sk.divid !== undefined && window.componentMap !== undefined) {
             if (Sk.gradeContainer != Sk.divid) {
                 var edKey = Sk.gradeContainer + " " + Sk.divid;
                 return new Sk.builtin.str(
-                    window.edList[edKey].editor.getValue()
+                    window.componentMap[edKey].editor.getValue()
                 );
             }
             return new Sk.builtin.str(
-                window.edList[Sk.divid].editor.getValue()
+                window.componentMap[Sk.divid].editor.getValue()
             );
         } else {
             throw new Sk.builtin.AttributeError(
