@@ -159,7 +159,7 @@ class TestCaseGui(TestCase):
             expandbutton.value = expandmsg
             expandbutton.type = "button"
             expandbutton.addEventListener("click", foo)
-            expandbutton.classList.add("btn btn-info")
+            expandbutton.classList.add("btn", "btn-info")
             row.appendChild(expandbutton)
 
         self.resTable.appendChild(row)
