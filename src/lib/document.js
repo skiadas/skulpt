@@ -59,9 +59,15 @@ function $builtinmodule() {
         if (Sk.divid !== undefined && window.componentMap !== undefined) {
             if (Sk.gradeContainer != Sk.divid) {
                 var edKey = Sk.gradeContainer + " " + Sk.divid;
-                return new Sk.builtin.str(
-                    window.componentMap[edKey].editor.getValue()
-                );
+                if (edKey in window.componentMap) {
+                    return new Sk.builtin.str(
+                        window.componentMap[edKey].editor.getValue()
+                    );
+                } else {
+                    return new Sk.builtin.str(
+                        window.componentMap[Sk.divid].editor.getValue()
+                    );
+                }
             }
             return new Sk.builtin.str(
                 window.componentMap[Sk.divid].editor.getValue()

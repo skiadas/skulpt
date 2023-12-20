@@ -197,7 +197,7 @@ class TestCaseGui(TestCase):
 
         except:
             print(
-                "failed to find object to record unittest results! {}".format(
-                    pctcorrect
+                "failed to find object to record unittest results in {}! {}".format(
+                    self.closestDiv, pctcorrect
                 )
             )
