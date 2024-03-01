@@ -208,18 +208,7 @@ $builtinmodule = function (name) {
                     self.updateCount++;
                     if ((self.updateCount % self.updateInterval) === 0 ||
                         (self.updateCount === self.width * self.height)) {
-                        if (self.lastx + self.updateInterval >= self.width) {
-                            self.lastCtx.putImageData(self.imagedata, self.lastUlx, self.lastUly,
-                                0, self.lasty, self.width, Math.ceil((self.lastx + self.updateInterval) / self.width));
-                        } else {
-                            self.lastCtx.putImageData(self.imagedata, self.lastUlx, self.lastUly,
-                                Math.min(x, self.lastx),
-                                Math.min(y, self.lasty),
-                                Math.max(Math.abs(x - self.lastx), 1),
-                                Math.max(Math.abs(y - self.lasty), 1));
-                        }
-                        self.lastx = x;
-                        self.lasty = y;
+                            self.lastCtx.putImageData(self.imagedata, 0, 0);
                         if (self.delay > 0) {
                             window.setTimeout(resolve, self.delay);
                         } else {
