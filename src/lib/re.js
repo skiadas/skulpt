@@ -154,7 +154,7 @@ function $builtinmodule(name) {
             },
         },
         flags: {
-            sk$acceptable_as_base_class: false,
+            sk$unacceptableBase: true,
         },
     });
 
@@ -285,12 +285,23 @@ function $builtinmodule(name) {
         }
     })();
 
+    /*
+     * Python docs:
+     * To match a literal ']' inside a set, precede it with a backslash, or place it at the beginning of the set.
+     * For example, both [()[\]{}] and []()[{}] will match a right bracket, as well as left bracket, braces, and parentheses.
+     * 
+     * This is not valid in JS so escape this occurrence
+     */
+    const initialUnescapedBracket = /([^\\])(\[\^?)\](\]|.*[^\\]\])/g;
     // adjustments to {, | \\A | \\Z | $ | (?P=foo) | (?P<name>
-    const py_to_js_regex = /([^\\])({,|\\A|\\Z|\$|\(\?P=([^\d\W]\w*)\)|\(\?P<([^\d\W]\w*)>)(?![^\[]*\])/g;
+    // We also don't want these characters to be inside square brackets
+    // (?!(?:\]|[^\[]*[^\\]\])) Negative lookahead checking the next character is not ] (e.g. special case \\Z])
+    // And that we don't have an unescaped "]" so long as it's not preceded by a "[".
+    const py_to_js_regex = /([^\\])({,|\\A|\\Z|\$|\(\?P=([^\d\W]\w*)\)|\(\?P<([^\d\W]\w*)>)(?!(?:\]|[^\[]*[^\\]\]))/g;
     // unicode mode in js regex treats \\\t incorrectly and should be converted to \\t
     // similarly \" and \' \! \& throw errors
-    const py_to_js_unicode_escape = /\\[\t\r\n \v\f#&~"'!]|\\-(?![^\[]*\])/g;
-    const quantifier_error = /Incomplete quantifier|Lone quantifier/g;
+    const py_to_js_unicode_escape = /\\[\t\r\n \v\f#&~"'!:,;`<>]|\\-(?!(?:\]|[^\[]*[^\\]\]))/g;
+    const quantifierErrors = /Incomplete quantifier|Lone quantifier/g;
 
     const _compiled_patterns = Object.create(null);
 
@@ -304,6 +315,7 @@ function $builtinmodule(name) {
 
         const named_groups = {};
         jsPattern = "_" + jsPattern; // prepend so that we can safely not use negative lookbehinds in py_to_js_regex
+        jsPattern = jsPattern.replace(initialUnescapedBracket, "$1$2\\]$3");
         jsPattern = jsPattern.replace(py_to_js_regex, (m, p0, p1, p2, p3, offset) => {
             switch (p1) {
                 case "\\A":
@@ -354,14 +366,16 @@ function $builtinmodule(name) {
         try {
             regex = new RegExp(unicodeEscapedPattern, jsFlags);
         } catch (e) {
-            if (quantifier_error.test(e.message)) {
+            if (quantifierErrors.test(e.message)) {
                 try {
-                    // try without the unicode flag
-                    regex = new RegExp(jsPattern, jsFlags.replace("u",""));
+                    // try without the unicode flag since unicode mode is stricter
+                    regex = new RegExp(jsPattern, jsFlags.replace("u", ""));
                 } catch (e) {
                     msg = e.message.substring(e.message.lastIndexOf(":") + 2) + " in pattern: " + pyPattern.toString(); 
                     throw new re.error(msg, pyPattern);
                 }
+                //// uncomment when debugging
+                // Sk.asserts.fail(e.message.substring(e.message.lastIndexOf(":") + 2) + " in pattern: " + jsPattern.toString());
             } else {
                 msg = e.message.substring(e.message.lastIndexOf(":") + 2) + " in pattern: " + pyPattern.toString();
                 throw new re.error(msg, pyPattern);
@@ -747,7 +761,7 @@ function $builtinmodule(name) {
             },
         },
         flags: {
-            sk$acceptable_as_base_class: false,
+            sk$unacceptableBase: true,
         },
     });
 
@@ -1030,7 +1044,7 @@ function $builtinmodule(name) {
             },
         },
         flags: {
-            sk$acceptable_as_base_class: false,
+            sk$unacceptableBase: true,
         },
     });
 
